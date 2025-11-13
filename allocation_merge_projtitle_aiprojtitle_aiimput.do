@@ -689,7 +689,63 @@ bysort gid_0: tab paymentyear if name_0 == "Angola"
 
 use "$alloc/PLAD_ISO.dta", clear
 
-drop if ISO_CODE == ""
+rename gid_0 birthplace_gid_0
+gen gid_0 = birthplace_gid_0
+
+replace gid_0 = "DZA" if idacr == "ALG" // Algeria
+replace gid_0 = "ARM" if idacr == "ARM" // Armenia
+replace gid_0 = "AUS" if idacr == "AUL" // Australia
+replace gid_0 = "BGD" if idacr == "BNG" // Bangladesh
+replace gid_0 = "BRB" if idacr == "BAR" // Barbados
+replace gid_0 = "BEL" if idacr == "BEL" // Belgium
+replace gid_0 = "BEN" if idacr == "BEN" // Benin
+replace gid_0 = "BTN" if idacr == "BHU" // Bhutan had missing values for some observations
+replace gid_0 = "BIH" if idacr == "BOS" // Bosnia
+replace gid_0 = "BWA" if idacr == "BOT" // Botswana
+replace gid_0 = "BGR" if idacr == "BUL" // Bulgaria
+replace gid_0 = "CAF" if idacr == "CEN" // Central African Republic
+replace gid_0 = "COM" if idacr == "COM" // Comoros
+replace gid_0 = "CRI" if idacr == "COS" // Costa Rica
+replace gid_0 = "CYP" if idacr == "CYP" // Cyprus
+replace gid_0 = "CZE" if idacr == "CZE" // Czech Republic
+replace gid_0 = "CZE" if idacr == "CZR" // Czech Republic
+replace gid_0 = "DJI" if idacr == "DJI" // Djibouti
+replace gid_0 = "ECU" if idacr == "ECU" // Ecuador
+replace gid_0 = "FIN" if idacr == "FIN" // Finland
+replace gid_0 = "GAB" if idacr == "GAB" // Gabon
+replace gid_0 = "GEO" if idacr == "GRG" // Georgia
+replace gid_0 = "GRC" if idacr == "GRC" // Greece
+replace gid_0 = "GUY" if idacr == "GUY" // Guyana
+replace gid_0 = "HTI" if idacr == "HAI" // Haiti had missing values for some observations
+replace gid_0 = "HND" if idacr == "HON" // Honduras
+replace gid_0 = "IND" if idacr == "IND" // India
+replace gid_0 = "IRQ" if idacr == "IRQ" // Iraq
+replace gid_0 = "ISR" if idacr == "ISR" // Israel
+replace gid_0 = "KWT" if idacr == "KUW" // Kuwait
+replace gid_0 = "LAO" if idacr == "LAO" // Laos
+replace gid_0 = "LVA" if idacr == "LAT" // Latvia
+replace gid_0 = "MDV" if idacr == "MAD" // Maldives
+replace gid_0 = "MKD" if idacr == "MAC" // Macedonia
+replace gid_0 = "MDA" if idacr == "MLD" // Moldavia
+replace gid_0 = "NPL" if idacr == "NEP" // Nepal
+replace gid_0 = "PRK" if idacr == "PRK" // North Korea
+replace gid_0 = "PAK" if idacr == "PAK" // Pakistan
+replace gid_0 = "ROU" if idacr == "RUM" // Romania
+replace gid_0 = "SRB" if idacr == "SER" // Serbia
+replace gid_0 = "SLB" if idacr == "SOL" // Solomon Islands had missing values for some observations
+replace gid_0 = "SOM" if idacr == "SOM" // Somalia
+replace gid_0 = "KOR" if idacr == "ROK" // South Korea
+replace gid_0 = "TWN" if idacr == "TAW" // Taiwan
+replace gid_0 = "THA" if idacr == "THI" // Thailand
+replace gid_0 = "GBR" if idacr == "UKG" // UK
+replace gid_0 = "ZMB" if idacr == "ZAM" // Zambia
+
+replace country = "Iraq" if gid_0 == "IRQ" 
+replace country = "Czech Republic" if gid_0 == "CZE"
+
+replace birthplace_gid_0 = "MDV" if idacr == "MAD" // birthplace_gid_0 was empty because gid_0 was empty, but data geolocates birthplaces of all leaders in Maldives
+
+drop if idac == "GDR" // delete two entries on German Democratic Republic
 
 assert !missing(startyear) & !missing(endyear) // sanity check
 quietly assert startyear <= endyear
@@ -718,68 +774,32 @@ tab country if indic == 1
 * br if indic == 1
 br if indic != 1
 
+br if name_0 == "Bhutan"
+br if name_0 == "Haiti"
+br if name_0 == "Solomon Islands"
+
 * DIAGNOSTICS END
 */
 
-rename gid_0 birthplace_gid_0
-gen gid_0 = birthplace_gid_0
 
-replace gid_0 = "DZA" if idacr == "ALG" // Algeria
-replace gid_0 = "ARM" if idacr == "ARM" // Armenia
-replace gid_0 = "AUS" if idacr == "AUL" // Australia
-replace gid_0 = "BGD" if idacr == "BNG" // Bangladesh
-replace gid_0 = "BRB" if idacr == "BAR" // Barbados
-replace gid_0 = "BEL" if idacr == "BEL" // Belgium
-replace gid_0 = "BEN" if idacr == "BEN" // Benin
-replace gid_0 = "BIH" if idacr == "BOS" // Bosnia
-replace gid_0 = "BWA" if idacr == "BOT" // Botswana
-replace gid_0 = "BGR" if idacr == "BUL" // Bulgaria
-replace gid_0 = "CAF" if idacr == "CEN" // Central African Republic
-replace gid_0 = "COM" if idacr == "COM" // Comoros
-replace gid_0 = "CRI" if idacr == "COS" // Costa Rica
-replace gid_0 = "CYP" if idacr == "CYP" // Cyprus
-replace gid_0 = "CZE" if idacr == "CZE" // Czech Republic
-replace gid_0 = "DJI" if idacr == "DJI" // Djibouti
-replace gid_0 = "ECU" if idacr == "ECU" // Ecuador
-replace gid_0 = "FIN" if idacr == "FIN" // Finland
-replace gid_0 = "GAB" if idacr == "GAB" // Gabon
-replace gid_0 = "GEO" if idacr == "GRG" // Georgia
-replace gid_0 = "GRC" if idacr == "GRC" // Greece
-replace gid_0 = "GUY" if idacr == "GUY" // Guyana
-replace gid_0 = "HND" if idacr == "HON" // Honduras
-replace gid_0 = "IND" if idacr == "IND" // India
-replace gid_0 = "IRQ" if idacr == "IRQ" // Iraq
-replace gid_0 = "ISR" if idacr == "ISR" // Israel
-replace gid_0 = "KWT" if idacr == "KUW" // Kuwait
-replace gid_0 = "LAO" if idacr == "LAO" // Laos
-replace gid_0 = "LVA" if idacr == "LAT" // Latvia
-replace gid_0 = "MVD" if idacr == "MAD" // Maldives
-replace gid_0 = "MKD" if idacr == "MAC" // Macedonia
-replace gid_0 = "MDA" if idacr == "MLD" // Moldavia
-replace gid_0 = "NPL" if idacr == "NEP" // Nepal
-replace gid_0 = "PRK" if idacr == "PRK" // North Korea
-replace gid_0 = "PAK" if idacr == "PAK" // Pakistan
-replace gid_0 = "ROU" if idacr == "RUM" // Romania
-replace gid_0 = "SRB" if idacr == "SER" // Serbia
-replace gid_0 = "SOM" if idacr == "SOM" // Somalia
-replace gid_0 = "KOR" if idacr == "ROK" // South Korea
-replace gid_0 = "TWN" if idacr == "TAW" // Taiwan
-replace gid_0 = "THA" if idacr == "THI" // Thailand
-replace gid_0 = "GBR" if idacr == "UKG" // UK
-replace gid_0 = "ZMB" if idacr == "ZAM" // Zambia
-
-replace country == "Iraq" if gid_0 == "IRQ" 
 
 order gid_0 country idacr
 rename country name_0
 rename ISO_CODE birthplace_iso
 
 * some countries have more than 1 gid_0 code. E.g., Algeria has country code MAR (Morocco) for Bouteflika's term -> gid_0 indicates the country in which the leader is born, not the country he governs. Need to map idacr onto alpha 3 country codes
-
-/* diagnostics
+/*
+* diagnostics
 
 br if country == "Algeria"
 br if idacr == "ALG"
+
+tab gid_0 if name_0 == "Czech Republic"
+tab gid_0 if name_0 == "Czech Republik"
+
+
+br gid_0 name_0 idacr paymentyear birthplace_iso if name_0 == "Czech Republik" | name_0 == "Czech Republic"
+sort
 
 count if idacr != gid_0 // 4,112 cases where idacr and gid_0 differ
 tab country if idacr != gid_0 
@@ -794,6 +814,12 @@ sort idacr paymentyear
 
 br country idacr gid_0 leader paymentyear 
 
+
+
+duplicates report gid_0 paymentyear
+duplicates tag gid_0 paymentyear, gen(dup)
+br if dup == 1
+
 */ * diagnostics end
 
 save "$plad/PLAD_panel.dta", replace
@@ -802,24 +828,44 @@ save "$plad/PLAD_panel.dta", replace
 * merge PLAD to GODAD
 use "$alloc/godad_riomarkers_ethnicity_panel_unsc.dta", clear
 
-merge m:1 name_0 year using "$plad/PLAD_panel.dta", keepus(leader birthplace_iso)
+merge m:1 gid_0 paymentyear using "$plad/PLAD_panel.dta", keepus(leader birthplace_iso)
 
 /*
 
     Result                      Number of obs
     -----------------------------------------
-    Not matched                         9,340
-        from master                     6,234  (_merge==1)
-        from using                      3,106  (_merge==2)
+    Not matched                         6,800
+        from master                     3,658  (_merge==1)
+        from using                      3,142  (_merge==2)
 
-    Matched                            65,761  (_merge==3)
+    Matched                            68,336  (_merge==3)
     -----------------------------------------
 
 */
 
-tab name_0 if _merge == 1 // Algeria, Montenegro, Armenia
+* DIAGNOSTICS
+
+tab name_0 if _merge == 1 // Montenegro, Somalia
+// Montenegro not part of initial PLAD
+// Somalia did really not have any government btw 1992 and 2011
+// South Sudan has missing values corresponding to its state foundation only in 2011
+// Maldives had wrong gid_0 code -> now corrected
+
+
+
+local c Maldives
+tab paymentyear if _merge == 1 & name_0 == "`c'"
+br gid_0 name_0 paymentyear iso_code birthplace_iso if name_0 == "`c'" 
+use "$plad/PLAD_panel.dta", clear
+local c Maldives
+br if name_0 == "`c'"
+use "$alloc/PLAD_ISO.dta", clear
+br if country == "`c'"
 tab paymentyear if _merge == 1 & name_0 == "Serbia"
 tab paymentyear if _merge == 1 & name_0 == "Philippines"
+
+
+* DIAGNOSTICS END
 
 foreach c in Algeria Montenegro Armenia {
 	display("`c'")
