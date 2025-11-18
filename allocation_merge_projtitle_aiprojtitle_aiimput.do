@@ -732,6 +732,7 @@ replace gid_0 = "PRK" if idacr == "PRK" // North Korea
 replace gid_0 = "PAK" if idacr == "PAK" // Pakistan
 replace gid_0 = "ROU" if idacr == "RUM" // Romania
 replace gid_0 = "SRB" if idacr == "SER" // Serbia
+replace gid_0 = "SRB" if idacr == "YUG" // attribute Yugoslavia to Serbia before 2003 (Montenegro not part of PLAD)
 replace gid_0 = "SLB" if idacr == "SOL" // Solomon Islands had missing values for some observations
 replace gid_0 = "SOM" if idacr == "SOM" // Somalia
 replace gid_0 = "KOR" if idacr == "ROK" // South Korea
@@ -745,7 +746,7 @@ replace country = "Czech Republic" if gid_0 == "CZE"
 
 replace birthplace_gid_0 = "MDV" if idacr == "MAD" // birthplace_gid_0 was empty because gid_0 was empty, but data geolocates birthplaces of all leaders in Maldives
 
-drop if idac == "GDR" // delete two entries on German Democratic Republic
+drop if idacr == "GDR" // delete two entries on German Democratic Republic
 
 assert !missing(startyear) & !missing(endyear) // sanity check
 quietly assert startyear <= endyear
@@ -761,6 +762,9 @@ sort gid_0 paymentyear leader
 
 gsort idacr paymentyear  -startyear -endyear // if two spells share the same startyear, the one with the later endyear appears first
 by idacr paymentyear : keep if _n == 1 // Keep the first observation per country-year
+
+drop if gid_0 == "SRB" & idacr == "YUG" & paymentyear == 2006 & leader == "Svetozar Marovic" // drop first leader in year 2006 for Yugoslavia
+
 by idacr paymentyear : assert _N == 1 // confirm uniqueness
 
 // the gid_0 variable shows the birthplace of the leaders, which may be born in another
@@ -788,8 +792,8 @@ rename country name_0
 rename ISO_CODE birthplace_iso
 
 * some countries have more than 1 gid_0 code. E.g., Algeria has country code MAR (Morocco) for Bouteflika's term -> gid_0 indicates the country in which the leader is born, not the country he governs. Need to map idacr onto alpha 3 country codes
-/*
-* diagnostics
+
+/* diagnostics
 
 br if country == "Algeria"
 br if idacr == "ALG"
@@ -820,7 +824,7 @@ duplicates report gid_0 paymentyear
 duplicates tag gid_0 paymentyear, gen(dup)
 br if dup == 1
 
-*/ * diagnostics end
+ * diagnostics end */
 
 save "$plad/PLAD_panel.dta", replace
 *** PLAD panel saved ***********************************************************
@@ -832,40 +836,45 @@ merge m:1 gid_0 paymentyear using "$plad/PLAD_panel.dta", keepus(leader birthpla
 
 /*
 
-    Result                      Number of obs
     -----------------------------------------
-    Not matched                         6,800
-        from master                     3,658  (_merge==1)
-        from using                      3,142  (_merge==2)
+    Not matched                         6,640
+        from master                     3,530  (_merge==1)
+        from using                      3,110  (_merge==2)
 
-    Matched                            68,336  (_merge==3)
+    Matched                            68,464  (_merge==3)
     -----------------------------------------
 
 */
 
-* DIAGNOSTICS
+/* DIAGNOSTICS
 
-tab name_0 if _merge == 1 // Montenegro, Somalia
+tab name_0 if _merge == 1, sort // Montenegro, Somalia
 // Montenegro not part of initial PLAD
 // Somalia did really not have any government btw 1992 and 2011
+// Samoa not contained in PLAD
+// São Tomé and Príncipe not contained in PLAD
+// Dominica not part of PLAD
 // South Sudan has missing values corresponding to its state foundation only in 2011
 // Maldives had wrong gid_0 code -> now corrected
+// North Macedonia is missing entries in 1989 and 1990, corresponding to its state formation in 1991
+// Serbia formed a union with Macedonia until 2006
+/// Serbia had missing entries -> took the ones for Yugoslavia
+// the rest seems to be small island states without information on leaders in PLAD or years around 1990
 
 
-
-local c Maldives
+local c Eritrea 
 tab paymentyear if _merge == 1 & name_0 == "`c'"
-br gid_0 name_0 paymentyear iso_code birthplace_iso if name_0 == "`c'" 
+br gid_0 name_0 paymentyear iso_code leader birthplace_iso if name_0 == "`c'" 
 use "$plad/PLAD_panel.dta", clear
-local c Maldives
 br if name_0 == "`c'"
 use "$alloc/PLAD_ISO.dta", clear
 br if country == "`c'"
+br if country == "Yugoslavia"
 tab paymentyear if _merge == 1 & name_0 == "Serbia"
 tab paymentyear if _merge == 1 & name_0 == "Philippines"
 
 
-* DIAGNOSTICS END
+ DIAGNOSTICS END 
 
 foreach c in Algeria Montenegro Armenia {
 	display("`c'")
@@ -925,7 +934,7 @@ by country: assert _N == 1 // gid_0 code is unique within country
 
  
 
-* DIAGNOSTICS END
+* DIAGNOSTICS END */
 ********************************************************************************
 *** INSPECT THE GODAD_RIOMARKERS DATA SET **************************************
 ********************************************************************************
