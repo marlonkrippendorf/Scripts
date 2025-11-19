@@ -832,7 +832,9 @@ save "$plad/PLAD_panel.dta", replace
 * merge PLAD to GODAD
 use "$alloc/godad_riomarkers_ethnicity_panel_unsc.dta", clear
 
-merge m:1 gid_0 paymentyear using "$plad/PLAD_panel.dta", keepus(leader birthplace_iso)
+merge m:1 gid_0 paymentyear using "$plad/PLAD_panel.dta", keepus(leader birthplace_iso ethnicity_geoepr1 ethnicity_geoepr2)
+drop if _merge != 3
+drop _merge
 
 /*
 
@@ -935,6 +937,62 @@ by country: assert _N == 1 // gid_0 code is unique within country
  
 
 * DIAGNOSTICS END */
+
+save "$alloc/godad_riomarkers_ethnicity_panel_unsc_plad.dta", replace
+
+********************************************************************************
+*** FINAL MODIFICATIONS ON MERGED GODAD ****************************************
+********************************************************************************
+
+
+use "$alloc/godad_riomarkers_ethnicity_panel_unsc_plad.dta", clear
+
+drop iso_code_num // drop factor variable indicating region's iso_code
+
+* generate dummy indicating whether region == leader's birthplace in that year
+codebook iso_code, detail // no missing values
+codebook birthplace_iso 
+br if birthplace_iso == ""
+tab name_0 if birthplace_iso == ""
+
+levelsof name_0 if birthplace_iso == "", local(missingcountries)
+// 5 developing countries `"Bhutan"' `"Comoros"' `"Guinea-Bissau"' `"Philippines"' `"Solomon Islands"'
+
+foreach c of local missingcountries {
+    display `"`c'"'
+    tab paymentyear if name_0 == `"`c'"' & birthplace_iso == ""
+} // years look weird, all 5 countries do contain some info on leader's birthplace but some missing years
+// Bhutan has information on missing years in PLAD, but no geo-information on respective leaders
+// Comoros has information on missing years in PLAD, but no geo-information on respective leaders
+// Guinea_Bissau is weird, most leaders have geo-information but few have mapped onto isocodes
+// Philippines is weird, all leaders have geo-information but few have mapped onto isocodes
+
+gen ident_region_leaderbirth = .
+replace ident_region_leaderbirth = 0 if iso_code != birthplace_iso & birthplace_iso != "" // only denote different region if there's info on leaders' birthplace iso code
+replace ident_region_leaderbirth = 1 if iso_code == birthplace_iso 
+
+* generate dummy indicating whether region's dominant ethnicity == leader's ethnicity 1 or 2 in that year
+codebook dominant_ethnic_group, detail
+tab name_0 if dominant_ethnic_group == ""
+levelsof name_0 if dominant_ethnic_group == "", local(missingethn)
+// following countries have missing values on dominant ethnic group: `"Barbados"' `"Burkina Faso"' `"Cape Verde"' `"Colombia"' `"Egypt"' `"Haiti"' `"Iran"' `"Jamaica"' `"Maldives"' `"Malta"' `"Mozambique"' `"North Korea"' `"Oman"' `"Solomon Islands"' `"Tunisia"' `"Uganda"' `"Yemen"'
+// Barbados not in geoEPR
+// Burkina Faso not in geoEPR
+// Cape Verde not in geoEPR
+// Colombia is in geoEPR but covers very few regions
+// Egypt is in geoEPR but covers very few regions
+// -> missing values probably make sense as there is no data in geoEPR
+	
+gen byte ident_region_leaderethn = .
+replace ident_region_leaderethn = 1 if ///
+    (dominant_ethnic_group == ethnicity_geoepr1 | dominant_ethnic_group == ethnicity_geoepr2) & ///
+    dominant_ethnic_group != "" & (ethnicity_geoepr1 != "" | ethnicity_geoepr2 != "")
+
+replace ident_region_leaderethn = 0 if ///
+    dominant_ethnic_group != "" & (ethnicity_geoepr1 != "" | ethnicity_geoepr2 != "") & ///
+    missing(ident_region_leaderethn)
+
+ 
 ********************************************************************************
 *** INSPECT THE GODAD_RIOMARKERS DATA SET **************************************
 ********************************************************************************
