@@ -944,10 +944,7 @@ save "$alloc/godad_riomarkers_ethnicity_panel_unsc_plad.dta", replace
 *** FINAL MODIFICATIONS ON MERGED GODAD ****************************************
 ********************************************************************************
 
-
 use "$alloc/godad_riomarkers_ethnicity_panel_unsc_plad.dta", clear
-
-drop iso_code_num // drop factor variable indicating region's iso_code
 
 * generate dummy indicating whether region == leader's birthplace in that year
 codebook iso_code, detail // no missing values
@@ -991,18 +988,109 @@ replace ident_region_leaderethn = 1 if ///
 replace ident_region_leaderethn = 0 if ///
     dominant_ethnic_group != "" & (ethnicity_geoepr1 != "" | ethnicity_geoepr2 != "") & ///
     missing(ident_region_leaderethn)
+	
 
+drop iso_code_num	
+destring unsc, replace // unsc is string, turn into numeric
+
+foreach f in gid_0 iso_code { // turn gid_0 and iso_code into factor variables to use them in regression
+	encode `f', gen(`f'_f)
+	drop `f'
+	rename `f'_f `f'
+}
+
+* disbursement variable has negative values -> CHECK WHY THEY ARE NEGATIVE!!!
+count if disb < 0
+br if disb < 0
+replace disb = 0 if disb < 0 
+
+save "$alloc/godad_riomarkers_ethnicity_panel_unsc_plad_finvar.dta", replace
  
 ********************************************************************************
 *** INSPECT THE GODAD_RIOMARKERS DATA SET **************************************
 ********************************************************************************
-
+/*
 foreach v of varlist climatemitigation_title climatemitigation_aititle climatemitigation_aiimput climateadaptation_title climateadaptation_aititle climateadaptation_aiimput biodiversity_title biodiversity_aititle biodiversity_aiimput environment_title environment_aititle environment_aiimput {
 	codebook `v', detail
 }
 
 // aititle climatemitigation has 1200 fewer missing values than plain title climatemitigation, but aititle climateadaptation has 4200 *more* missing values than plain title climateadaptation, aititle biodiversity also only improves plain title merge by 1500 missing values, ai title environment only improves by 3300 & throughout all variables, aititle records significicantly fewer values with 2 and 1, so the improvement, if any, stems from much more observations with Rio Marker 0 
+*/
 
+********************************************************************************
+*** REPLICATION OF BERLIN ET AL. (2023) ****************************************
+********************************************************************************
+
+*ssc install xtpqml
+
+use "$alloc/godad_riomarkers_ethnicity_panel_unsc_plad_finvar.dta", clear
+
+eststo clear
+foreach var in unsc ident_region_leaderbirth ident_region_leaderethn {
+
+xi: qui eststo: xtpqml disb `var'  i.paymentyear, irr fe i(gid_0)
+xi: qui eststo: xtpqml disb `var'  i.paymentyear, irr fe i(iso_code)
+
+}
+
+esttab  using mainC.tex, eform nocon title(Commitments - main effects\label{mainC}) ///
+mtitles("UNSC" "UNSC" "Birth Region" "Birth Region" "Coethnic Region" "Coethnic Region" )  ///
+replace drop(_I*) cells(b(fmt(3)) p(fmt(3) par([ ]))) scalars("N_g Groups")  ///
+ren(birthregionD MainEffect unsc MainEffect  coethnicshare MainEffect ///
+    incumbentregD MainEffect)  nogap compress obslast nonotes
+
+
+* Original code
+
+************************************** Table 1 *******************************************
+eststo clear
+foreach var in unsc birthregionD incumbentregD {
+xi: qui eststo: xtpqml wb_start `var'  i.year, irr fe i(countrycode)
+xi: qui eststo: xtpqml wb_start `var'  i.year, irr fe i(geoname_id)
+}
+
+esttab  using lin.tex, eform nocon title(Number of projects - main effects\label{main}) ///
+mtitles("UNSC" "UNSC" "Birth Region" "Birth Region" "Coethnic Region" "Coethnic Region" ) ///
+replace drop(_I*) cells(b(fmt(3)) p(fmt(3) par([ ]))) scalars("N_g Groups")  ///
+ren(birthregionD MainEffect  unsc MainEffect  coethnicshare MainEffect ///
+    incumbentregD MainEffect) nogap compress obslast nonotes
+	
+eststo clear
+foreach var in unsc birthregionD incumbentregD {
+
+xi: qui eststo: xtpqml wb_commit `var'  i.year, irr fe i(countrycode)
+xi: qui eststo: xtpqml wb_commit `var'  i.year, irr fe i(geoname_id)
+
+}
+
+esttab  using mainC.tex, eform nocon title(Commitments - main effects\label{mainC}) ///
+mtitles("UNSC" "UNSC" "Birth Region" "Birth Region" "Coethnic Region" "Coethnic Region" )  ///
+replace drop(_I*) cells(b(fmt(3)) p(fmt(3) par([ ]))) scalars("N_g Groups")  ///
+ren(birthregionD MainEffect unsc MainEffect  coethnicshare MainEffect ///
+    incumbentregD MainEffect)  nogap compress obslast nonotes
+
+************************************** Table 2 *******************************************
+
+eststo clear
+foreach var in birthregionD incumbentregD  {
+
+gen interaction=`var'*unsc
+xi: qui eststo: xtpqml wb_start unsc `var' interaction i.year, irr fe i(geoname_id)
+xi: qui eststo: xtpqml wb_commit unsc `var' interaction i.year, irr fe i(geoname_id)
+
+drop interaction
+}
+
+esttab using interC.tex, eform nocon title(UNSC membership and political connections - Interaction effects\label{inter}) ///
+mtitles("Birth Region" "Coethnic Region" "Coethnic Share" ) scalars("N_g Regions") ///
+replace drop(_I*) cells(b(fmt(3)) p(fmt(3) par([ ]))) nogap compress ///
+ren(birthregionD BirthRegion interaction UNSCInteraction ///
+    unsc UNSC  incumbentregD CoethnicRegion) obslast nonotes ///
+    order(UNSC BirthRegion CoethnicRegion) ///
+    addnotes("The table reports Incidence Rate Ratios from FE Poisson regressions. The dependent" ///
+        "variable is USD commitments to projects started in each region and year. All regressions" ///
+        "include region and year fixed effects. Standard errors are cluster-robust at the country level." ///
+        "P-values under the coefficients.")
 
 ********************************************************************************
 *** DESCRIPTIVE STATISTICS *****************************************************
