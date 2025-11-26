@@ -386,10 +386,43 @@ environment_aiimput biodiversity_aiimput climatemitigation_aiimput climateadapta
 	replace dis_`v' = disb if `v' == 1 | `v' == 2 // take disbursements if project is climate related
 }
 
+gen donor_short = lower(substr(donor, 1, 3))
+replace donor_short = "uk" if donor == "United Kingdom"
+replace donor_short = "usa" if donor == "United States"
+
+save "$alloc/godad_riomarkers_ethnicity_uniqueproj_final.dta", replace
+
 * Aggregate disbursements and count unique projects
+
+use "$alloc/godad_riomarkers_ethnicity_uniqueproj_final.dta", clear
 collapse (sum) disb d_* dis_* (first) name_0 gid_0 name_1 dominant_ethnic_group, by(iso_code paymentyear)
 
+save "$alloc/godad_riomarkers_ethnicity_isocode_onlyall.dta", replace
+
+* create datasets for European donors and merge them to overall sample data set
+use "$alloc/godad_riomarkers_ethnicity_uniqueproj_final.dta", clear
+levelsof donor_short, local(donors)
+
+foreach c of local donors { // creates single data sets with information only on respective donor
+    display `"`c'"'
+	use "$alloc/godad_riomarkers_ethnicity_uniqueproj_final.dta", clear
+    collapse (sum) disb d_* dis_* (first) name_0 gid_0 name_1 dominant_ethnic_group if donor_short == `"`c'"', by(iso_code paymentyear)
+	rename disb `c'_disb
+	rename d_* `c'_d*
+	save "$alloc/godad_riomarkers_ethnicity_isocode_`c'.dta", replace
+}
+
+use "$alloc/godad_riomarkers_ethnicity_isocode_onlyall.dta", clear
+
+foreach c of local donors { // merge the single data sets to initial overall sample data set
+	display("`c'")
+	merge 1:1 paymentyear iso_code using "$alloc/godad_riomarkers_ethnicity_isocode_`c'.dta", keepus(`c'_*)
+	drop _merge
+}
+
 save "$alloc/godad_riomarkers_ethnicity_isocode.dta", replace
+*** collapsed data set with information on individual donors saved *************
+
 use "$alloc/godad_riomarkers_ethnicity_isocode.dta", clear
 
 * Create a balanced panel
@@ -1025,20 +1058,53 @@ foreach v of varlist climatemitigation_title climatemitigation_aititle climatemi
 
 use "$alloc/godad_riomarkers_ethnicity_panel_unsc_plad_finvar.dta", clear
 
+*** Table 1 ***
+
 eststo clear
 foreach var in unsc ident_region_leaderbirth ident_region_leaderethn {
 
 xi: qui eststo: xtpqml disb `var'  i.paymentyear, irr fe i(gid_0)
+    estadd local country_fe "Yes"
+    estadd local region_fe "No"
 xi: qui eststo: xtpqml disb `var'  i.paymentyear, irr fe i(iso_code)
-
+    estadd local country_fe "No"
+    estadd local region_fe "Yes"
 }
 
-esttab  using mainC.tex, eform nocon title(Commitments - main effects\label{mainC}) ///
+esttab  using "$allocoutput/mainC.tex", eform nocon title(Disbursements - main effects\label{mainC}) ///
 mtitles("UNSC" "UNSC" "Birth Region" "Birth Region" "Coethnic Region" "Coethnic Region" )  ///
-replace drop(_I*) cells(b(fmt(3)) p(fmt(3) par([ ]))) scalars("N_g Groups")  ///
-ren(birthregionD MainEffect unsc MainEffect  coethnicshare MainEffect ///
-    incumbentregD MainEffect)  nogap compress obslast nonotes
+replace drop(_I*) cells(b(fmt(3) star) p(fmt(3) par([ ]))) ///
+scalars("N_g Groups" "country_fe Country FE" "region_fe Region FE") ///
+ren(ident_region_leaderbirth MainEffect unsc MainEffect ident_region_leaderethn MainEffect ///
+    incumbentregD MainEffect)  nogap compress obslast nonotes ///
+star(* 0.10 ** 0.05 *** 0.01) ///
+note("Linear effects of UNSC membership, birth region, and co-ethnic region on amounts disbursed. Degrees of significance: p < 0.10*; p < 0.05**; p < 0.01***")
 
+*** Table 2 ***
+
+use "$alloc/godad_riomarkers_ethnicity_panel_unsc_plad_finvar.dta", clear
+
+eststo clear
+foreach var in ident_region_leaderbirth ident_region_leaderethn {
+
+gen interaction=`var'*unsc
+*xi: qui eststo: xtpqml wb_start unsc `var' interaction i.paymentyear, irr fe i(geoname_id)
+xi: qui eststo: xtpqml disb unsc `var' interaction i.paymentyear, irr fe i(iso_code)
+
+drop interaction
+}
+
+esttab using "$allocoutput/interC.tex", eform nocon title(UNSC membership and political connections - Interaction effects\label{inter}) ///
+mtitles("Birth Region" "Coethnic Region" "Coethnic Share" ) scalars("N_g Regions") ///
+replace drop(_I*) cells(b(fmt(3) star) p(fmt(3) par([ ]))) nogap compress ///
+ren(ident_region_leaderbirth BirthRegion interaction UNSCInteraction ///
+    unsc UNSC  ident_region_leaderethn CoethnicRegion) obslast nonotes ///
+    order(UNSC BirthRegion CoethnicRegion) ///
+star(* 0.10 ** 0.05 *** 0.01) ///
+    addnotes("The table reports Incidence Rate Ratios from FE Poisson regressions. The dependent" ///
+        "variable is USD commitments to projects started in each region and year. All regressions" ///
+        "include region and year fixed effects. Standard errors are cluster-robust at the country level." ///
+        "P-values under the coefficients.")
 
 * Original code
 
