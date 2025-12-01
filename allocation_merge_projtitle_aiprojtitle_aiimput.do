@@ -359,7 +359,11 @@ save "$alloc/godad_riomarkers_ethnicity.dta", replace
 * first, create a dataset with unique project_id, aggregating by iso_code and paymentyear
 use "$alloc/godad_riomarkers_ethnicity.dta", clear
 
-collapse (sum) disb (firstnm) donor name_0 name_1 gid_0 projecttitle description score_title environment_title biodiversity_title climatemitigation_title climateadaptation_title desertification_title score_aititle environment_aititle biodiversity_aititle climatemitigation_aititle climateadaptation_aititle desertification_aititle similarity_aititle projecttitle_rio_aititle environment_aiimput biodiversity_aiimput climatemitigation_aiimput climateadaptation_aiimput desertification_aiimput environment_aiimput_conf biodiversity_aiimput_conf climatemitigation_aiimput_conf climateadaptation_aiimput_conf desertification_aiimput_conf dominant_ethnic_group, by(iso_code paymentyear project_id)
+rename climatemitigation* climmit* // some variable names will exceed 32 characters in the following, therefore rename to abbreviate
+rename climateadaptation* climadpt*
+rename desertification* desert*
+
+collapse (sum) disb (firstnm) donor name_0 name_1 gid_0 projecttitle description score_title environment_title biodiversity_title climmit_title climadpt_title desert_title score_aititle environment_aititle biodiversity_aititle climmit_aititle climadpt_aititle desert_aititle similarity_aititle projecttitle_rio_aititle environment_aiimput biodiversity_aiimput climmit_aiimput climadpt_aiimput desert_aiimput environment_aiimput_conf biodiversity_aiimput_conf climmit_aiimput_conf climadpt_aiimput_conf desert_aiimput_conf dominant_ethnic_group, by(iso_code paymentyear project_id)
 
 save "$alloc/godad_riomarkers_ethnicity_uniqueproj.dta", replace
 
@@ -368,9 +372,9 @@ use "$alloc/godad_riomarkers_ethnicity_uniqueproj.dta", clear
 
 * create dummies to indicate climate projects for later collapse
 foreach v of varlist ///
-score_title environment_title biodiversity_title climatemitigation_title climateadaptation_title desertification_title ///
-score_aititle environment_aititle biodiversity_aititle climatemitigation_aititle climateadaptation_aititle desertification_aititle ///
-environment_aiimput biodiversity_aiimput climatemitigation_aiimput climateadaptation_aiimput desertification_aiimput {
+score_title environment_title biodiversity_title climmit_title climadpt_title desert_title ///
+score_aititle environment_aititle biodiversity_aititle climmit_aititle climadpt_aititle desert_aititle ///
+environment_aiimput biodiversity_aiimput climmit_aiimput climadpt_aiimput desert_aiimput {
 	gen d_`v' = .
 	replace d_`v' = 0 if `v' == 0
 	replace d_`v' = 1 if `v' == 1 | `v' == 2
@@ -378,9 +382,9 @@ environment_aiimput biodiversity_aiimput climatemitigation_aiimput climateadapta
 
 * create different disbursement variables based on the type of merge
 foreach v of varlist ///
-score_title environment_title biodiversity_title climatemitigation_title climateadaptation_title desertification_title ///
-score_aititle environment_aititle biodiversity_aititle climatemitigation_aititle climateadaptation_aititle desertification_aititle ///
-environment_aiimput biodiversity_aiimput climatemitigation_aiimput climateadaptation_aiimput desertification_aiimput {
+score_title environment_title biodiversity_title climmit_title climadpt_title desert_title ///
+score_aititle environment_aititle biodiversity_aititle climmit_aititle climadpt_aititle desert_aititle ///
+environment_aiimput biodiversity_aiimput climmit_aiimput climadpt_aiimput desert_aiimput {
 	gen dis_`v' = .
 	replace dis_`v' = 0 if `v' == 0 // zero disbursements if project is not climate related
 	replace dis_`v' = disb if `v' == 1 | `v' == 2 // take disbursements if project is climate related
@@ -395,7 +399,8 @@ save "$alloc/godad_riomarkers_ethnicity_uniqueproj_final.dta", replace
 * Aggregate disbursements and count unique projects
 
 use "$alloc/godad_riomarkers_ethnicity_uniqueproj_final.dta", clear
-collapse (sum) disb d_* dis_* (first) name_0 gid_0 name_1 dominant_ethnic_group, by(iso_code paymentyear)
+gen project_count = 1 // create indicator variable, there aren't any projects without a project_id in the data set anymore
+collapse (sum) project_count disb d_* dis_* (first) name_0 gid_0 name_1 dominant_ethnic_group, by(iso_code paymentyear)
 
 save "$alloc/godad_riomarkers_ethnicity_isocode_onlyall.dta", replace
 
@@ -409,6 +414,7 @@ foreach c of local donors { // creates single data sets with information only on
     collapse (sum) disb d_* dis_* (first) name_0 gid_0 name_1 dominant_ethnic_group if donor_short == `"`c'"', by(iso_code paymentyear)
 	rename disb `c'_disb
 	rename d_* `c'_d*
+	rename dis_* `c'_dis_*
 	save "$alloc/godad_riomarkers_ethnicity_isocode_`c'.dta", replace
 }
 
@@ -423,13 +429,104 @@ foreach c of local donors { // merge the single data sets to initial overall sam
 save "$alloc/godad_riomarkers_ethnicity_isocode.dta", replace
 *** collapsed data set with information on individual donors saved *************
 
-use "$alloc/godad_riomarkers_ethnicity_isocode.dta", clear
+**********************************************************************************
+* include information on started projects, commitments based on startyear ********
+**********************************************************************************
+
+* first, create a dataset with unique project_id, aggregating by iso_code and startyear
+use "$alloc/godad_riomarkers_ethnicity.dta", clear
+
+rename climatemitigation* climmit* // some variable names will exceed 32 characters in the following, therefore rename to abbreviate
+rename climateadaptation* climadpt*
+rename desertification* desert*
+
+collapse (sum) comm (firstnm) donor name_0 name_1 gid_0 projecttitle description score_title environment_title biodiversity_title climmit_title climadpt_title desert_title score_aititle environment_aititle biodiversity_aititle climmit_aititle climadpt_aititle desert_aititle similarity_aititle projecttitle_rio_aititle environment_aiimput biodiversity_aiimput climmit_aiimput climadpt_aiimput desert_aiimput environment_aiimput_conf biodiversity_aiimput_conf climmit_aiimput_conf climadpt_aiimput_conf desert_aiimput_conf dominant_ethnic_group, by(iso_code startyear project_id)
+
+save "$alloc/godad_riomarkers_ethnicity_uniqueproj_comm.dta", replace
+
+use "$alloc/godad_riomarkers_ethnicity_uniqueproj_comm.dta", clear
+*** Unique GODAD projects with ethnicity saved *********************************
+
+* create dummies to indicate climate projects for later collapse
+foreach v of varlist ///
+score_title environment_title biodiversity_title climmit_title climadpt_title desert_title ///
+score_aititle environment_aititle biodiversity_aititle climmit_aititle climadpt_aititle desert_aititle ///
+environment_aiimput biodiversity_aiimput climmit_aiimput climadpt_aiimput desert_aiimput {
+	gen ds_`v' = .
+	replace ds_`v' = 0 if `v' == 0
+	replace ds_`v' = 1 if `v' == 1 | `v' == 2
+}
+
+* create different commitments variables based on the type of merge
+foreach v of varlist ///
+score_title environment_title biodiversity_title climmit_title climadpt_title desert_title ///
+score_aititle environment_aititle biodiversity_aititle climmit_aititle climadpt_aititle desert_aititle ///
+environment_aiimput biodiversity_aiimput climmit_aiimput climadpt_aiimput desert_aiimput {
+	gen comm_`v' = .
+	replace comm_`v' = 0 if `v' == 0 // zero commitments if project is not climate related
+	replace comm_`v' = comm if `v' == 1 | `v' == 2 // take commitments if project is climate related
+}
+
+gen project_count_start = 1 // create indicator variable, there aren't any projects without a project_id in the data set anymore
+
+gen donor_short = lower(substr(donor, 1, 3))
+replace donor_short = "uk" if donor == "United Kingdom"
+replace donor_short = "usa" if donor == "United States"
+
+save "$alloc/godad_riomarkers_ethnicity_uniqueproj_comm_final.dta", replace
+
+* Aggregate commitments and count unique projects
+
+use "$alloc/godad_riomarkers_ethnicity_uniqueproj_comm_final.dta", clear
+collapse (sum) project_count_start comm ds_* comm_* (first) name_0 gid_0 name_1 dominant_ethnic_group, by(iso_code startyear)
+
+save "$alloc/godad_riomarkers_ethnicity_isocode_onlyall_comm.dta", replace
+
+* create datasets for European donors and merge them to overall sample data set
+use "$alloc/godad_riomarkers_ethnicity_uniqueproj_comm_final.dta", clear
+
+levelsof donor_short, local(donors)
+
+foreach c of local donors { // creates single data sets with information only on respective donor
+    display `"`c'"'
+	use "$alloc/godad_riomarkers_ethnicity_uniqueproj_comm_final.dta", clear
+    collapse (sum) comm project_count_start ds_* comm_* (first) name_0 gid_0 name_1 dominant_ethnic_group if donor_short == `"`c'"', by(iso_code startyear)
+	rename comm `c'_comm
+	rename project_count_start `c'_count_comm
+	rename ds_* `c'_ds_*
+	rename comm_* `c'_comm_*
+	save "$alloc/godad_riomarkers_ethnicity_isocode_comm_`c'.dta", replace
+}
+
+use "$alloc/godad_riomarkers_ethnicity_isocode_onlyall_comm.dta", clear
+
+foreach c of local donors { // merge the single data sets to initial overall sample data set
+	display("`c'")
+	merge 1:1 startyear iso_code using "$alloc/godad_riomarkers_ethnicity_isocode_comm_`c'.dta", keepus(`c'_*)
+	drop _merge
+}
+
+* clean the data set
+drop if startyear == . // delelete missing values
+drop if startyear == 1900 // 236 cases have unreasonable startyear 1900
+
+rename startyear paymentyear // commitments and start year information is indicated in variable names
+
+save "$alloc/godad_riomarkers_ethnicity_isocode_comm.dta", replace
+
+*******************************************************************************************************
+* HERE THE INITIAL CODE CONTINUES *********************************************************************
+*******************************************************************************************************
+
+use "$alloc/godad_riomarkers_ethnicity_isocode_comm.dta", clear
 
 * Create a balanced panel
 * First, identify the full range of years
 summarize paymentyear
 local min_year = r(min)
 local max_year = r(max)
+
+use "$alloc/godad_riomarkers_ethnicity_isocode.dta", clear
 
 * Get list of all unique iso_code values
 preserve
@@ -460,6 +557,10 @@ merge 1:1 iso_code paymentyear using "$alloc/godad_riomarkers_ethnicity_isocode.
 drop _merge
 order name_0 gid_0 name_1 iso_code paymentyear disb
 sort iso_code paymentyear
+
+* Merge with actual data on commitments based on startyear
+merge 1:1 iso_code paymentyear using "$alloc/godad_riomarkers_ethnicity_isocode_comm.dta"
+drop _merge
 
 * Fill missing geographic identifiers within each iso_code panel
 * Carry forward non-missing values within each iso_code group
@@ -1032,10 +1133,37 @@ foreach f in gid_0 iso_code { // turn gid_0 and iso_code into factor variables t
 	rename `f'_f `f'
 }
 
+* create European aggregate: disbursement, commitment, started projects
+local eur_countries "aus bel den fin fra ger gre ice ire ita lux net nor por spa swe swi uk "
+
+// disbursement
+local varlist "" // Build the variable list
+foreach c of local eur_countries {
+    local varlist "`varlist' `c'_disb"
+}
+egen eur_disb = rowtotal(`varlist') // Sum them
+
+// commitment
+local varlist "" // Build the variable list
+foreach c of local eur_countries {
+    local varlist "`varlist' `c'_comm"
+}
+egen eur_comm = rowtotal(`varlist') 
+
+// started projects
+local varlist "" // Build the variable list
+foreach c of local eur_countries {
+    local varlist "`varlist' `c'_count_comm"
+}
+egen eur_count_comm = rowtotal(`varlist') 
+
 * disbursement variable has negative values -> CHECK WHY THEY ARE NEGATIVE!!!
 count if disb < 0
 br if disb < 0
 replace disb = 0 if disb < 0 
+
+count if eur_disb < 0
+replace eur_disb = 0 if eur_disb < 0
 
 save "$alloc/godad_riomarkers_ethnicity_panel_unsc_plad_finvar.dta", replace
  
@@ -1088,14 +1216,15 @@ eststo clear
 foreach var in ident_region_leaderbirth ident_region_leaderethn {
 
 gen interaction=`var'*unsc
-*xi: qui eststo: xtpqml wb_start unsc `var' interaction i.paymentyear, irr fe i(geoname_id)
-xi: qui eststo: xtpqml disb unsc `var' interaction i.paymentyear, irr fe i(iso_code)
+xi: eststo: xtpqml eur_count_comm unsc `var' interaction i.paymentyear, irr fe i(iso_code)
+*xi: eststo: xtpqml eur_comm unsc `var' interaction i.paymentyear, irr fe i(iso_code)
+xi: eststo: xtpqml eur_disb unsc `var' interaction i.paymentyear, irr fe i(iso_code)
 
 drop interaction
 }
 
-esttab using "$allocoutput/interC.tex", eform nocon title(UNSC membership and political connections - Interaction effects\label{inter}) ///
-mtitles("Birth Region" "Coethnic Region" "Coethnic Share" ) scalars("N_g Regions") ///
+esttab using "$allocoutput/interC.tex", eform nocon title(European countries: UNSC membership and political connections - Interaction effects\label{inter}) ///
+mtitles("Birth Region Count" "Birth Region Disb" "Coethnic Count" "Coethnic Disb" ) scalars("N_g Regions") ///
 replace drop(_I*) cells(b(fmt(3) star) p(fmt(3) par([ ]))) nogap compress ///
 ren(ident_region_leaderbirth BirthRegion interaction UNSCInteraction ///
     unsc UNSC  ident_region_leaderethn CoethnicRegion) obslast nonotes ///
