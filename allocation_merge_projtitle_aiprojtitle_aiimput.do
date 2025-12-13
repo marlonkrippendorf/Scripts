@@ -354,6 +354,9 @@ save "$alloc/godad_riomarkers.dta", replace
 
 * use data set from Python (spatial join of world map, ethnicity and godad) 
 import delimited "$alloc/godad_riomarkers_ethnicity.csv", clear
+
+replace disb = 1 if disb < 0 // recode negative disbursement values to 1 as in Bomprezzi et al. (2025, p. 18) 
+
 save "$alloc/godad_riomarkers_ethnicity.dta", replace
 
 * first, create a dataset with unique project_id, aggregating by iso_code and paymentyear
@@ -369,6 +372,8 @@ save "$alloc/godad_riomarkers_ethnicity_uniqueproj.dta", replace
 
 use "$alloc/godad_riomarkers_ethnicity_uniqueproj.dta", clear
 *** Unique GODAD projects with ethnicity saved *********************************
+
+
 
 * create dummies to indicate climate projects for later collapse
 foreach v of varlist ///
@@ -1157,14 +1162,6 @@ foreach c of local eur_countries {
 }
 egen eur_count_comm = rowtotal(`varlist') 
 
-* disbursement variable has negative values -> CHECK WHY THEY ARE NEGATIVE!!!
-count if disb < 0
-br if disb < 0
-replace disb = 0 if disb < 0 
-
-count if eur_disb < 0
-replace eur_disb = 0 if eur_disb < 0
-
 save "$alloc/godad_riomarkers_ethnicity_panel_unsc_plad_finvar.dta", replace
  
 ********************************************************************************
@@ -1226,6 +1223,38 @@ drop interaction
 esttab using "$allocoutput/interC.tex", eform nocon title(European countries: UNSC membership and political connections - Interaction effects\label{inter}) ///
 mtitles("Birth Region Count" "Birth Region Disb" "Coethnic Count" "Coethnic Disb" ) scalars("N_g Regions") ///
 replace drop(_I*) cells(b(fmt(3) star) p(fmt(3) par([ ]))) nogap compress ///
+ren(ident_region_leaderbirth BirthRegion interaction UNSCInteraction ///
+    unsc UNSC  ident_region_leaderethn CoethnicRegion) obslast nonotes ///
+    order(UNSC BirthRegion CoethnicRegion) ///
+star(* 0.10 ** 0.05 *** 0.01) ///
+    addnotes("The table reports Incidence Rate Ratios from FE Poisson regressions. The dependent" ///
+        "variable is USD commitments to projects started in each region and year. All regressions" ///
+        "include region and year fixed effects. Standard errors are cluster-robust at the country level." ///
+        "P-values under the coefficients.")
+		
+*** Table 2 with Regular Fixed Effects Estimator ***
+
+use "$alloc/godad_riomarkers_ethnicity_panel_unsc_plad_finvar.dta", clear
+xtset iso_code paymentyear
+
+foreach y in eur_count_comm eur_comm eur_disb {
+	gen l_`y' = log(`y')
+}
+
+eststo clear
+foreach var in ident_region_leaderbirth ident_region_leaderethn {
+
+gen interaction=`var'*unsc
+eststo: xtreg eur_count_comm unsc `var' interaction i.paymentyear, fe i(iso_code)
+eststo: xtreg eur_comm unsc `var' interaction i.paymentyear, fe i(iso_code)
+eststo: xtreg eur_disb unsc `var' interaction i.paymentyear, fe i(iso_code)
+
+drop interaction
+}
+
+esttab using "$allocoutput/interC.tex", nocon title(European countries: UNSC membership and political connections - Interaction effects\label{inter}) ///
+mtitles("Birth Region Count" "Birth Region Comm" "Birth Region Disb" "Coethnic Count" "Coethnic Comm" "Coethnic Disb" ) scalars("N_g Regions") ///
+replace drop(*paymentyear*) cells(b(star) p(fmt(3) par([ ]))) nogap compress ///
 ren(ident_region_leaderbirth BirthRegion interaction UNSCInteraction ///
     unsc UNSC  ident_region_leaderethn CoethnicRegion) obslast nonotes ///
     order(UNSC BirthRegion CoethnicRegion) ///
